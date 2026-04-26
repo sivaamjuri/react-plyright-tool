@@ -47,9 +47,46 @@ const UploadForm = ({ onAnalyze, isLoading, progress }) => {
     };
 
     const handleStudentFilesChange = (e) => {
+        if (e.target.files.length > 10) {
+            setError(`⚠️ Error: You selected ${e.target.files.length} ZIP files. To prevent server crashes, please select a maximum of 10 ZIP files!`);
+            setStudentFiles([]);
+            e.target.value = '';
+            return;
+        }
+        setError('');
         if (e.target.files.length > 0) {
             setStudentFiles(Array.from(e.target.files));
         }
+    };
+
+    const handleExcelChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            setExcelFile(null);
+            return;
+        }
+
+        try {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            const validRows = json.filter(row => row && row.length > 0 && row.some(cell => cell && String(cell).trim() !== ''));
+            const dataRowCount = validRows.length > 0 ? validRows.length - 1 : 0;
+
+            if (dataRowCount > 10) {
+                setError(`⚠️ Error: Your Excel sheet has ${dataRowCount} links. To prevent server crashes, please upload an Excel sheet with a maximum of 10 projects!`);
+                setExcelFile(null);
+                e.target.value = '';
+                return;
+            }
+        } catch (err) {
+            console.error("Failed to parse Excel file:", err);
+        }
+
+        setError('');
+        setExcelFile(file);
     };
 
     const handleSubmit = async (e) => {
@@ -150,7 +187,7 @@ const UploadForm = ({ onAnalyze, isLoading, progress }) => {
                         <input
                             type="file"
                             accept=".xlsx, .xls"
-                            onChange={(e) => setExcelFile(e.target.files[0])}
+                            onChange={handleExcelChange}
                             disabled={isLoading}
                         />
                         <div className="file-info">
