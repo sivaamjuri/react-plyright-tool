@@ -19,7 +19,7 @@ const Home = () => {
         if (excelFile) formData.append('studentExcel', excelFile);
 
         try {
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const baseUrl = import.meta.env.VITE_API_URL || 'https://react-plyright-tool-siva.duckdns.org';
             const response = await fetch(`${baseUrl}/compare`, {
                 method: 'POST',
                 headers: {
