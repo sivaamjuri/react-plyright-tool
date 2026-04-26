@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import JSZip from 'jszip';
+import * as XLSX from 'xlsx';
 import './UploadForm.css';
 
 const UploadForm = ({ onAnalyze, isLoading, progress }) => {
@@ -53,10 +54,37 @@ const UploadForm = ({ onAnalyze, isLoading, progress }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!solutionFile || (studentFiles.length === 0 && !excelFile)) {
+        if (!solutionFile || (!useExcel && studentFiles.length === 0) || (useExcel && !excelFile)) {
             setError('Please select the solution and either student ZIP files or an Excel sheet.');
             return;
         }
+
+        // Validate max 10 projects to prevent server crash
+        if (useExcel && excelFile) {
+            try {
+                const data = await excelFile.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                // Filter out empty rows
+                const validRows = json.filter(row => row && row.length > 0 && row.some(cell => cell && String(cell).trim() !== ''));
+                const dataRowCount = validRows.length > 0 ? validRows.length - 1 : 0;
+
+                if (dataRowCount > 10) {
+                    setError(`⚠️ Error: Your Excel sheet has ${dataRowCount} links. To prevent server crashes, please upload a maximum of 10 projects at a time!`);
+                    return;
+                }
+            } catch (err) {
+                console.error("Failed to parse Excel file:", err);
+                setError('Failed to read the Excel file to verify project count.');
+                return;
+            }
+        } else if (!useExcel && studentFiles.length > 10) {
+            setError(`⚠️ Error: You selected ${studentFiles.length} ZIP files. To prevent server crashes, please upload a maximum of 10 ZIP files at a time!`);
+            return;
+        }
+
         setError('');
 
         const cleanSolution = await sanitizeZip(solutionFile, 'Solution');
