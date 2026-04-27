@@ -846,6 +846,12 @@ app.post('/compare', upload.fields([{ name: 'solution' }, { name: 'student' }, {
             }
         }
         if (studentExcel?.path) await fs.remove(studentExcel.path).catch(() => { });
+
+        // AUTOMATIC DISK CLEANUP: Prevent AWS server from getting stuck by clearing Playwright artifacts automatically
+        try {
+            const cp = spawn('rm', ['-rf', '/tmp/playwright-*', '/tmp/.org.chromium.Chromium*'], { shell: true });
+            cp.on('close', () => log(`[Final Cleanup] Wiped /tmp Playwright artifacts automatically`));
+        } catch(e) {}
     }
 });
 
